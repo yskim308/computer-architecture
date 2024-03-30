@@ -16,4 +16,12 @@ m2 = np.array ([
 ])
 
 result = m1@m2
-print(result)
+
+print(f'result of numpy dot product: \n {result}')
+
+#simulating input stationary flow with assembly
+#all matrices in assembly are one dimensional
+m3 = np.zeros(40)
+m1 = m1.flatten()
+m2 = m2.flatten()
+
