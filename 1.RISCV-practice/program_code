@@ -1,0 +1,68 @@
+# Kite program code
+#   1. The first instruction starts at PC = 4. PC = 0 is reserved as invalid.
+#   2. To terminate the program, let the next PC naturally go out of range.
+#   3. All the instructions and labels are case-insensitive.
+#   4. The program code supports only the following list of instructions
+#      (sorted by alphabetical order in each type).
+#      R-type: add, and, div, divu, mul, or, rem, remu, sll, sra, srl, sub, xor
+#      I-type: addi, andi, jalr, ld, slli, srai, srli, ori, xori
+#      S-type: sd
+#      SB-type: beq, bge, blt, bne
+#      U-type: lui
+#      UJ-type: jal
+#      No-type: nop
+
+#################################
+# Assignment 1: RISC-V Assembly #
+#################################
+#x10 is pointer to matrix a 
+#x29 is index of matrix a 
+#x11 is pointer to matrix b 
+#x30 is index of matrix b
+#x12 is pointer to matrix c 
+#x31 is index of matrix c
+
+#x13 is 5
+#x14 is 8
+#x15 is 4 
+#x16 is column count of matrix b (to check when new row is reached)
+#x17 is the row count of matrix c (to know where to reset the c index to)
+MMUL:
+    addi x4, x0, 256 #initialize x4 to 32 to use for comparison in branch statements
+    LOOP: #begin the loop  
+    beq x30, x4, CHECKTWO #if the index of matrix b reaches 32, go to checktwo (this indcates that b has reached the end of its matrix)
+    beq x16, x14, CHECKONE #if the column count of matrix is 8 go to checkone (this indicates that b has reached a new row)
+    beq x0, x0, ELSE #if the two branch instructions above are false, skip to the else portion
+
+    CHECKONE: #when the index of matrix b reaches the end of a row, we want to update the inrement the index of A and also reset the index of C to the correct index depending on which row we are on
+        addi x29, x29, 8 #increment the index of matrix A by 8 bytes 
+        addi x16, x0, 0 #reset the column count of matrix b to zero 
+        addi x31, x17, 0 #reset the index of matrix c to the beginning of the correct row 
+        beq x0, x0, LOOP
+
+    CHECKTWO: #because b reached the end of the matrix, set a new index for the index of C to reset to and reset the index of b to zero and reset the column count of b
+        addi x17, x17, 64 #add 8 (8 index away is 64 bytes away) to index of matrix c row count to indicate that c should now reset to a new row for calcuations
+        addi x30, x0, 0 #reset b-index to 0 
+        addi x16, x0, 0 #reset the column count of matrix b to be zero 
+        addi x29, x29, 8 #increment A by one index (8 bytes)
+        beq x0, x0 LOOP #this block makes sure that we move on to the next row of of matrix c properly
+
+    ELSE: #if neither of the preemptive checks are triggered, do the multiplication and increment indexes accordingly 
+        add x18, x10, x29 #because we can't do ld x18, x29(x10), we have to calculate the effective memory address with an add operation. Store the address into x18
+        ld x18, 0(x18) #load the data that x18 points to --> a[index] into x18 
+        add x19, x11, x30 #calculate effecitve memory address (x30 bytes away from the x11 pointer)
+        ld x19, 0(x19) #load the data that x19 points to  --> b[index] into x19 
+        mul x20, x18, x19 #store the result of the a[index] * b[index] into x20 // after this operation, the x18 and x19 registers can be reused 
+        add x21, x12, x31 #calculat effective mmeory address (x31 bytes away from the x12 pointer to matrix c)
+        ld x21, 0(x21) #store the data x21 points to (c[index] into x21)
+        add x18, x20, x21 #add to the partial sum of c and store into x19 --> reusltC += result_of_multiplication + c[index]
+        add x20, x12, x31 #store the effective memory address of matrix c into x20
+        sd x18, 0(x20)  #store into the index of c --> c[index] = resultC --> same as c[index] += result_of_multplication --> c[index] += a[index] * b[index]
+        #now that the multiplication operation is completed, we can increment the index and row values 
+        addi x16, x16, 1 #increment the column count of matrix b 
+        addi x30, x30, 8 #increment the index of matrix b (8 bytes)
+        addi x31, x31, 8 #increment the index of matrix c (8 bytes)
+    addi x5, x0, 160 #register to hold the value of 160 for comparison in blt --> index of 20 is 160 bytes away 
+    blt x29, x5, LOOP #if the index of a is less than 20, continue with by looping. If it is 20, that means calculations are over. continue to jalr instruction
+    jalr x0, 0(x0) #closing for MMUL function
+
