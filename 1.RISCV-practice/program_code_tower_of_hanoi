@@ -1,0 +1,104 @@
+############################################################
+# Kite: Architecture Simulator for RISC-V Instruction Set  #
+# Developed by William J. Song                             #
+# Computer Architecture and Systems Lab, Yonsei University #
+# Version: 1.12                                            #
+############################################################
+
+# Kite program code
+#   1. The first instruction starts at PC = 4. PC = 0 is reserved as invalid.
+#   2. To terminate the program, let the next PC naturally go out of range.
+#   3. All the instructions and labels are case-insensitive.
+#   4. The program code supports only the following list of instructions
+#      (sorted by alphabetical order in each type).
+#      R-type: add, and, div, divu, mul, or, rem, remu, sll, sra, srl, sub, xor
+#      I-type: addi, andi, jalr, ld, slli, srai, srli, ori, xori
+#      S-type: sd
+#      SB-type: beq, bge, blt, bne
+#      U-type: lui
+#      UJ-type: jal
+#      No-type: nop
+
+main:
+addi    x2,     x2,     -16     # Set the stack pointer.
+sd      x8,     0(x2)           # Store the frame pointer.
+addi    x8,     x2,     16      # Set the frame pointer.
+sd      x1,     -8(x8)          # Store the return address.
+
+ld      x10,    0(x18)          # x10 = n
+add     x11,    x18,    x0      # x11 = A
+add     x12,    x20,    x0      # x12 = C
+add     x13,    x19,    x0      # x13 = B
+jal     x1,     TowerOfHanoi    # TowerOfHanoi(n, A, C, B)
+
+ld      x1,     -8(x8)          # Restore the return address.
+ld      x8,     0(x2)           # Restore the frame pointer.
+addi    x2,     x2,     16      # Restore the stack pointer.
+add     x10,    x0,     x0      # return 0 at the end of main
+jalr    x0,     0(x1)           # End of the program code
+
+
+###########################
+# Assignment 2: Functions #
+###########################
+
+TowerOfHanoi:
+    addi x2, x2, -48 #set stack pointer (store x1, x8, x10, x11, x12, x13)
+    sd x1, 0(x2) #store return address
+    sd x8, 8(x2) #store frame pointer 
+    addi x8, x8, 48 #set frame pointer 
+    sd x10, 16(x2) #store n 
+    sd x11, 24(x2) #store pointer to array A 
+    sd x12, 32(x2) #store pointer to array C 
+    sd x13, 40(x2) #store pointer to array B
+
+    beq x10, x0, RETURN #set condition for n==0 to go return
+    addi x10, x10, -1 #decrement n then call function again 
+    #swap pointers before calling
+    addi x3, x12, 0 #x3 = x12 
+    addi x12, x13, 0 #x12 = x13 
+    addi x13, x3, 0 #x13 = x3 (old value of x12) 
+    jal x1, TowerOfHanoi #first recursive call 
+    ld x11, 24(x2) #restore original values of x11, x12, x13 
+    ld x12, 32(x2)
+    ld x13, 40(x2)
+
+    #moving disks, from will be x11, to will be x12, aux will be x13 
+    ld x3, 0(x12) #load the value of the first index of to 
+    addi x3, x3, 1 #increment --> to[0] += 1
+    sd x3, 0(x12) #store incremented value back into array 
+    slli x3, x3, 3 #multiply x3 by 8
+    add x3, x12, x3 #address = baseaddress + offset 
+    ld x4, 0(x11) #load from[0] 
+    addi x5, x4, 0 #set x5 = x4
+    slli x5, x5, 3 #multiply from[0] by 8 to represent offset 
+    add x5, x11, x5 #address = baseAddress + offset 
+    ld x5, 0(x5) #load from[address]
+    sd x5, 0(x3) #store the value of from[address] into to[to[0]++]
+    addi x4, x4, -1 #decrement the value of from[0] 
+    sd x4, 0(x11) #store the dcremented value back --> from[0]-- 
+    addi x9, x9, 1 #increment number of moves by 1 
+
+    #swap pointers before calling: 
+    addi x3, x11, 0 #x3 = x11 
+    addi x11, x13, 0 #x11 = x13
+    addi x13, x3, 0 #x13 = x3 (old value of x11) 
+    ld x10, 16(x2) #restore value of n (x1)
+    addi x10, x10, -1 #decrement before calling next
+    jal x1, TowerOfHanoi 
+    ld x11, 24(x2) #restore original values of x11, x12, x13 
+    ld x12, 32(x2)
+    ld x13, 40(x2)
+
+    #function call finished, clear stack and return to caller  
+    ld x1, 0(x2) #load return address
+    ld x8, 8(x2) #restore frame pointer 
+    addi x2, x2, 48 #clear stack 
+    jalr x0, 0(x1) #return to caller 
+    
+    RETURN: 
+        ld x1, 0(x2) #load return address 
+        ld x8, 8(x2) #restore frame pointer
+        addi x2, x2, 48 #clear stack 
+        jalr x0, 0(x1) #return to caller 
+
