@@ -8,7 +8,8 @@ int main(void) {
      ******************************************/
     cout << "======== [Tests for grading] ========" << endl;
 
-    float64_t x, y;
+    double x, y; 
+    //float64_t x, y;
     uint64_t t = 0, u = 0;
 
     // Add two positive numbers.

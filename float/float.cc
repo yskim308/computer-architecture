@@ -48,14 +48,14 @@ float64_t float64_t::operator+(const float64_t &y) {
      ***************************************************************/
 
     // An example to extract the sign, exponent, and fraction of x (*this).
-    // bool x_sign    = data >> (exp_bits + frac_bits);
-    // int64_t x_exp  = (data & exp_mask) >> frac_bits;
-    // int64_t x_frac = data & frac_mask;
+    bool x_sign    = data >> (exp_bits + frac_bits);
+    int64_t x_exp  = (data & exp_mask) >> frac_bits;
+    int64_t x_frac = data & frac_mask;
     
     // An example to extract the sign, exponent, and fraction of y (arg).
-    // bool y_sign    = y.data >> (exp_bits + frac_bits);
-    // int64_t y_exp  = (y.data & exp_mask) >> frac_bits;
-    // int64_t y_frac = y.data & frac_mask;
+    bool y_sign    = y.data >> (exp_bits + frac_bits);
+    int64_t y_exp  = (y.data & exp_mask) >> frac_bits;
+    int64_t y_frac = y.data & frac_mask;
 
     // Put the calculated sign, exponent, and fraction into r.data.
     float64_t r;
