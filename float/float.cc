@@ -69,7 +69,7 @@ float64_t float64_t::operator+(const float64_t &y) {
         y_frac |= (uint64_t) 1 << 52; 
         y_frac >>= (x_exp - y_exp); 
         r_exp = x_exp; 
-    }
+    } //doing same for the case where x_exp is less than y_exp 
     else if (x_exp < y_exp){
         x_frac |= (uint64_t) 1 << 52; 
         x_frac >>=  (y_exp - x_exp); 
@@ -89,25 +89,36 @@ float64_t float64_t::operator+(const float64_t &y) {
         r_sign = x_exp > y_exp ? x_sign : y_sign; 
     }
 
-    //mask to check if addition of two numbers results in overflow or underflow
-    uint64_t overflowMask = 1; 
-    overflowMask = overflowMask << 52;  
-    uint64_t underflowMask = 1; 
-    underflowMask = underflowMask << 51; 
 
+    if (x_sign == 1 && y_sign == 0){
+        x_frac = ((x_frac ^ frac_mask) + 1) & frac_mask;
+    }
+    else if (y_sign == 1 && x_sign == 0){
+        y_frac = ((y_frac ^ frac_mask) + 1) & frac_mask;
+    }
     //add the significand of the two numbers
     r_frac = x_frac + y_frac; 
+    if (r_sign == 1 && x_sign != y_sign){
+        r_frac = ((r_frac ^ frac_mask) + 1) & frac_mask; 
+    }
 
-    //check if noramlization is required for overflow by checking if the 53rd bit is 1. If it is one, normalize
+    if ( (r_frac >> 52) != 0 ){
+        r_frac |= (uint64_t) 1 >> 53; 
+        r_frac >>= 1; 
+        r_exp ++; 
+    }
+
     //to nomralize, shift the fractional component and increment the exponent
-    if ( (r_frac & overflowMask) != 0 ){
-        r_frac = r_frac >> 1; 
-        r_exp++; 
+    if (r_frac == 0 && x_sign == y_sign) {
+        r_frac = frac_mask;
+        r_exp--;
+        r_sign = ~r_sign;
     }
-    else if ( (r_frac & underflowMask) != 0){
-
+    else if (r_frac == 0 && x_sign != y_sign) {
+        r_frac = 0;
+        r_exp = 0;
+        r_sign = ~r_sign;
     }
-
     // Put the calculated sign, exponent, and fraction into r.data.
     uint64_t binaryReturn = 0;
     binaryReturn |= r_sign << (exp_bits + frac_bits); //code here for clarity. the sign of two positive addition will always be 0 anyway 
