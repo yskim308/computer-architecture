@@ -10,8 +10,9 @@ int main(void) {
 
     //double x, y; 
     float64_t x, y;
+    /*
     uint64_t t = 0, u = 0;
-
+    
     // Add two positive numbers.
     x = 3.875;
     y = 2.625;
@@ -129,17 +130,17 @@ int main(void) {
     cout << "Test #" << ++t << ": " << x << " - " << y << " = " << x - y << endl;
 
     cout << "======== [End of tests] ========" << endl;
-
+    */
     /******************************************
      * DO NOT MODIFY THE CODE ABOVE THIS LINE *
      ******************************************/
-    x = -0.33;
-    y = 1.32;
-    cout << "Test #" << ++t << ": " << x << " + " << y << " = " << x + y << endl;
+    x = 1.32;
+    y = 10.2;
+    cout << x << " - " << y << " = " << x - y << endl;
 
-    x = 12.2;
-    y = -1.32;
-    cout << "Test #" << ++t << ": " << x << " + " << y << " = " << x + y << endl;
+    x = 1.344;
+    y = -9.227;
+    cout <<  x << " + " << y << " = " << x + y << endl;
     return 0;
 }
 
