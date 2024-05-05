@@ -62,11 +62,13 @@ float64_t float64_t::operator+(const float64_t &y) {
    
     //declare the digits to return 
     uint64_t r_sign, r_frac, r_exp;
-    
+
+    //bool flags to check if either x or y is denoramlized.  
     bool x_is_denorm, y_is_denorm; 
     x_is_denorm = (x_exp == 0 && x_frac !=0) ? true: false;
     y_is_denorm = (y_exp == 0 && y_frac !=0) ? true: false;
 
+    //if either number is nan, immediately return nan as a result (no need to do any calculations)
     if ((x_exp == 2047 && x_frac !=0) || (y_exp == 2047 && y_frac!=0)){
         r_sign = 0; 
         r_frac = 1; 
@@ -83,18 +85,18 @@ float64_t float64_t::operator+(const float64_t &y) {
     //shift the smaller number's fractional component by the difference of the exponent values
     //and store the larger exponent into the return exponent value 
     if (x_exp > y_exp){
-        //if the number is NOT denormalized, add implicit 1 before shifting by the difference in exponent. if denomralized, do nothing  
+        //if the number is NOT denormalized, add implicit 1 before shifting by the difference in exponent.  
         if (y_exp != 0){
             y_frac |= (uint64_t) 1 << 52; 
         }
 
-        if (y_is_denorm){
+        if (y_is_denorm){ //if the number is denormalized, shift by -1 to ensure proper alignment of bits
             y_frac >>= (x_exp - y_exp - 1);
         }
-        else{
+        else{ //if number is normal, shift by the different of exponents
             y_frac >>= (x_exp - y_exp);
         }
-        r_exp = x_exp; //set result exponent as exponent of larger 
+        r_exp = x_exp; //set result exponent as exponent of larger exponent 
     } //doing same for the case where x_exp is less than y_exp 
     else if (x_exp < y_exp){
         if (x_exp != 0){
@@ -109,61 +111,60 @@ float64_t float64_t::operator+(const float64_t &y) {
         }
         r_exp = y_exp; 
     }
-    else { //if both exponent equal, nothing to do 
+    else { //if both exponent equal, nothing to do (no shifting to needs to be completed)
         r_exp = x_exp; 
     } 
 
-    //check the resulting sign: the resulting sign is the sign of the number with the larger absolute value 
-    //if the two exponent values are equal, check which fractional value is larger and set the sign accordingly 
-    int checkx, checky; 
+    //check the absolute value of each of the numbers and assign r_sign as the sign of the larger absolute value number
+    int checkx, checky; //checkx and checky are for setting both values to positive 
     checkx = x_sign == 1 ? -1: 1; 
     checky = y_sign == 1 ? -1: 1; 
     r_sign = (checkx)* *(double*)&data > (checky)* *(double*)&y.data ? x_sign : y_sign; 
 
-    //note that if both signs are equal, there is no point of doing twos complement
+    //complete the correct arithmetic operation depending on the sign of x and y 
     if (x_sign == 1 && y_sign == 0){
         r_frac = y_frac - x_frac;
     }
     else if (y_sign == 1 && x_sign == 0){
         r_frac = x_frac - y_frac;
     }
-    else {
+    else { //if addition, order of operations does not matter
         r_frac = x_frac + y_frac;
     }
 
-    //if two's complement form was used, then make sure to invert result and add one (same process as before)
+    //if there is subtraction of numbers of different sign, ensure two's complement conversion is completed
     if (r_sign == 1 && x_sign != y_sign){
         r_frac = ((r_frac ^ frac_mask) + 1) & frac_mask; 
     }
 
-    /*
-    uint64_t fuck = r_frac >> 52;
-    cout << endl << fuck << endl;
-    */
-    //if the 53rd bit is not zero, it indicates overflow, so shift right and increment exponent
-    if (x_is_denorm && y_is_denorm) {
+    if (x_is_denorm && y_is_denorm) { //if both numbers denormalized, overflow means a normalized number. Thus shift by one and increment exponent. 
         if ((r_frac >> 52) == 1){
             r_exp++;
         }
+    } 
+    else if ((x_is_denorm != y_is_denorm) && r_sign == 1){ //if both numbers are different (noramlized and denormalized) set exponent to zero if no overflow
+        if ((r_frac >>52) == 0){ //this essentially sets the resultant number as another denormalized number 
+            r_exp = 0;
+        }
     }
-    else if ( (r_frac >> 52) != 0 ){
+    else if ( (r_frac >> 52) != 0 ){ //otherwise, if both are normal, do as follows
         r_frac |= (uint64_t) 1 >> 53; //make sure that we are doing arithmetic shift (data is 64 bit so right shifting from 52 would fill with 0 not 1)
-        r_frac >>= 1; 
+        r_frac >>= 1; //shift by one and increment exp
         r_exp ++; 
         //if after shifting, the exponent value exceeds the maximum, then we have went over the maximum representable values, (infinity) thus fill exp and frac accordingly
         if( r_exp >= 2047){
             r_exp = 2047; 
             r_frac = 0; 
         }
-    }
-    
-    //if the fractional part is 0, then underflow has occured. Two cases;
-    if (r_frac == 0 && x_sign == y_sign && r_exp != 2047) { //case one: underflow is result of same-sign addition. Then set all bits to 1, decrement exp, and invert sign 
-        r_frac = frac_mask;
+    } //lastly check for underflow for normal numbers. If the 52nd bith is 1 but the 53rd bit is 0, then shift left and decrement exponent
+    else if ( (r_frac >> 51) == 1 && !x_is_denorm && !y_is_denorm && x_frac !=0 && y_frac !=0){
+        r_frac <<= 1;
         r_exp--;
-        r_sign = ~r_sign;
     }
-    else if (r_frac == 0 && x_sign != y_sign && r_exp != 2047) { //case two: underflow is result of subtraction. Then it represents 0. 
+
+   
+    //if the fractional compoenent is zero and it is the result of subtraction, then it must represent zero.
+    if (r_frac == 0 && x_sign != y_sign && r_exp != 2047) { // for zero, all bits must be 0 
         r_frac = 0;
         r_exp = 0;
         r_sign = 0;
@@ -185,6 +186,7 @@ float64_t float64_t::operator-(const float64_t &y) {
      * EEE3530 Assignment #3                                       *
      * Implement the double-precision floating-point sub function. 
      ***************************************************************/
+    //make a copy of the y data, set the invert the MSB (sign bit) and then call the + operator overload
     float64_t y_copy = y;
     y_copy.data ^= (uint64_t) 1 << (exp_bits + frac_bits) ;
     float64_t r; 
