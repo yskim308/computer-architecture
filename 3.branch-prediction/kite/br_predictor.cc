@@ -70,7 +70,7 @@ void br_predictor_t::update(inst_t *m_inst) {
         }
     }
     
-    bhr = pre_update_bhr; 
+    bhr = pre_update_bhr & h; 
 }
 
 
@@ -81,14 +81,21 @@ br_target_buffer_t::br_target_buffer_t(uint64_t m_size) :
     buffer(0) {
     // Create a direct-mapped branch target buffer (BTB).
     buffer = new uint64_t[num_entries];
+    //initialize btb values to zero
+    for (unsigned i = 0; i < num_entries; i++){
+        buffer[i] = 0;
+    }
 }
 // Get a branch target address.
 uint64_t br_target_buffer_t::get_target(uint64_t m_pc) {
     // Always return PC = 0.
-    return 0;
+    unsigned buffer_address = (m_pc >> 2) & 15; //shift and get lowest 4 bits 
+    return buffer[buffer_address];
 }
 
 // Update the branch target buffer.
 void br_target_buffer_t::update(uint64_t m_pc, uint64_t m_target_addr) {
+    unsigned buffer_address = (m_pc >> 2) & 15; //shift and get lowest 4 bits 
+    buffer[buffer_address] = m_target_addr;
 }
 
