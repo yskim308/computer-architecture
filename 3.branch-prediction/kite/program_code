@@ -19,10 +19,56 @@
 #      UJ-type: jal
 #      No-type: nop
 
-loop:   beq  x11, x0,  exit
-        remu x5,  x10, x11
-        add  x10, x11, x0
-        add  x11, x5,  x0
-        beq  x0,  x0,  loop
-exit:   sd   x10, 2000(x0)
+# int main(void);
+main:       addi    x2,     x2,     -16     # Set the stack pointer
+            sd      x8,     0(x2)           # Store the frame pointer.
+            addi    x8,     x2,     16      # Set the frame pointer.
+            sd      x1,     -8(x8)          # Store the return address.
+            addi    x10,    x21,    0       # x10 = x21 = 400
+            addi    x11,    x22,    0       # x11 = x22 = 720
+            jal     x1,     branch          # branch(x10, x11)
+            ld      x1,     -8(x8)          # Restore the return address.
+            ld      x8,     0(x2)           # Restore the frame pointer.
+            addi    x2,     x2,     32      # Restore the stack pointer.
+            addi    x10,    x0,     0       # return 0 at the end of main
+            jalr    x0,     0(x1)           # End of the program code
+
+# void branch(int64_t num_outer_loops, int64_t num_inner_loops);
+branch:     addi    x2,     x2,     -40     # Set the stack pointer.
+            sd      x8,     0(x2)           # Store the frame pointer.
+            addi    x8,     x2,     40      # Set the frame pointer.
+            sd      x24,    -8(x8)          # Store the saved registers.
+            sd      x25,    -16(x8)
+            sd      x26,    -24(x8)
+            sd      x27,    -32(x8)
+# Outer loop
+            addi    x24,    x10,    0
+L1:         bge     x0,     x24,    L7      # Branch
+            andi    x25,    x24,    1
+            addi    x24,    x24,    -1
+            bne     x25,    x0,     L2      # Branch
+            jal     x0,     L1
+# Inner loop
+L2:         addi    x26,    x0,     1
+            addi    x27,    x11,    0
+L3:         blt     x27,    x26,    L6      # Branch
+            andi    x25,    x26,    3
+            bne     x25,    x0,     L4      # Branch
+            addi    x26,    x26,    1
+            jal     x0,     L3
+L4:         addi    x25,    x25,    -1
+            addi    x26,    x26,    1
+            bne     x25,    x0,     L5      # Branch
+            addi    x26,    x26,    4
+L5:         jal     x0,     L3
+# End of the inner loop
+L6:         jal     x0,     L1
+# End of the outer loop
+L7:         ld      x24,    -8(x8)          # Restore the saved registers.
+            ld      x25,    -16(x8)
+            ld      x26,    -24(x8)
+            ld      x27,    -32(x8)
+            ld      x8,     0(x2)           # Restore the frame pointer.
+            addi    x2,     x2,     40      # Restore the stack pointer.
+            jalr    x0,     0(x1)           # Return to main.
 

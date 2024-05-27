@@ -1,6 +1,6 @@
 CXX=g++
 OPT=
-CFLAG:=-g -Wall -O3 $(OPT)
+CFLAG:=-g -Wall -O3 -DBR_PRED -DDATA_FWD $(OPT)
 
 SRC=$(wildcard *.cc)
 HDR=$(wildcard *.h)

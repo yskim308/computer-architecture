@@ -7,18 +7,17 @@
 // Branch predictor
 class br_predictor_t {
 public:
-    br_predictor_t(unsigned m_bht_bits, unsigned m_pht_bits, unsigned m_hist_len);
+    br_predictor_t(unsigned m_hist_len, unsigned m_pht_bits);
     ~br_predictor_t();
 
     bool is_taken(inst_t *m_inst);                      // Is a branch predicted to be taken?
     void update(inst_t *m_inst);                        // Update a prediction counter.
 
 private:
-    unsigned *bht;                                      // Branch history table (BHT)
+    uint8_t   bhr;                                      // Branch history register (BHR)
     uint8_t  *pht;                                      // Pattern history table (PHT)
-    unsigned  b;                                        // b bits for BHT indexing
+    unsigned  h;                                        // h-bit branch history
     unsigned  p;                                        // p bits for PHT indexing
-    unsigned  h;                                        // h-bit branch history per BHT entry
 };
 
 // Branch target buffer
