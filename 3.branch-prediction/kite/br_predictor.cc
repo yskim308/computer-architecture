@@ -25,16 +25,52 @@ br_predictor_t::br_predictor_t(unsigned m_hist_len, unsigned m_pht_bits) :
     p(m_pht_bits) {
     // Create a pattern history table (PHT).
     pht = new uint8_t[(1 << h) * (1 << p)];
+    //initialize pht to 1 (weakly not taken)
+    for (unsigned i = 0; i < h; i++){
+        for (unsigned j = 0; j < p; j++){
+            pht[i* (1 << p) + j] = 1;
+        }
+    }
 }
 // Is a branch predicted to be taken?
 bool br_predictor_t::is_taken(inst_t *m_inst) {
-    // Predict always not taken.
+    m_inst->pre_update_bhr = bhr; 
+    uint64_t shifted_pc = (m_inst->pc >> 2);        //shift and get lowest 4 bits
+    //get row and column index according to shifting logic
+    int row_index = (bhr ^ shifted_pc) & h;
+    int column_index = shifted_pc & p;
+    
+    //return true if pht at index is 2 or 3
+    if (pht[row_index * (1 << p) + column_index] >= 2){
+        return true;
+    }
+    // otherwise, return false
     return false;
 }
 
 // Update a prediction counter.
 void br_predictor_t::update(inst_t *m_inst) {
-    bhr = 0;
+    uint64_t shifted_pc = (m_inst->pc >> 2);        //shift and get lowest 4 bits
+    //get row and column index according to shifting logic
+    int row_index = (m_inst->pre_update_bhr ^ shifted_pc) & h;
+    int column_index = shifted_pc & p;
+
+    uint8_t pre_update_bhr = m_inst->pre_update_bhr;
+    pre_update_bhr <<= 1; 
+
+    if (m_inst->branch_taken){
+        pre_update_bhr += 1;
+        if (pht[row_index * (1<<p) + column_index] !=3 ){
+           pht[row_index * (1<<p) + column_index] += 1; 
+        }
+    }
+    else{
+        if (pht[row_index * (1<<p) + column_index] != 0){
+            pht[row_index * (1<<p) + column_index] -= 1;
+        }
+    }
+    
+    bhr = pre_update_bhr; 
 }
 
 

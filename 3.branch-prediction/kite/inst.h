@@ -24,6 +24,7 @@ public:
     uint64_t pred_target;               // Predicted branch target
     bool branch_taken;                  // Is a branch actually taken?
     bool pred_taken;                    // Is a branch predicted to be taken?
+    uint8_t pre_update_bhr;             // bhr BEFORE update  
 };
 
 // Convert Kite instruction to string format.
