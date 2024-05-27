@@ -28,34 +28,34 @@ br_predictor_t::br_predictor_t(unsigned m_hist_len, unsigned m_pht_bits) :
     //initialize pht to 1 (weakly not taken)
     for (unsigned i = 0; i < h; i++){
         for (unsigned j = 0; j < p; j++){
-            pht[i* (1 << p) + j] = 1;
+            pht[i* (1 << p) + j] = 0;
         }
     }
 }
 // Is a branch predicted to be taken?
 bool br_predictor_t::is_taken(inst_t *m_inst) {
     m_inst->pre_update_bhr = bhr; 
-    uint64_t shifted_pc = (m_inst->pc >> 2);        //shift and get lowest 4 bits
-    //get row and column index according to shifting logic
-    int row_index = (bhr ^ shifted_pc) & h;
-    int column_index = shifted_pc & p;
+    uint64_t shifted_pc = (m_inst->pc >> 2); 
+    int row_index = (bhr ^ shifted_pc) & 15;
+    int column_index = shifted_pc & 15;
     
     //return true if pht at index is 2 or 3
     if (pht[row_index * (1 << p) + column_index] >= 2){
         return true;
     }
-    // otherwise, return false
-    return false;
+    else{
+        return false;
+    }
 }
 
 // Update a prediction counter.
 void br_predictor_t::update(inst_t *m_inst) {
     uint64_t shifted_pc = (m_inst->pc >> 2);        //shift and get lowest 4 bits
     //get row and column index according to shifting logic
-    int row_index = (m_inst->pre_update_bhr ^ shifted_pc) & h;
-    int column_index = shifted_pc & p;
-
     uint8_t pre_update_bhr = m_inst->pre_update_bhr;
+    int row_index = (pre_update_bhr ^ shifted_pc) & 15;
+    int column_index = shifted_pc & 15;
+
     pre_update_bhr <<= 1; 
 
     if (m_inst->branch_taken){
@@ -70,7 +70,7 @@ void br_predictor_t::update(inst_t *m_inst) {
         }
     }
     
-    bhr = pre_update_bhr & h; 
+    bhr = pre_update_bhr & 15; 
 }
 
 
