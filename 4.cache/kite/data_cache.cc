@@ -5,10 +5,12 @@
 using namespace std;
 
 data_cache_t::data_cache_t(uint64_t *m_ticks, uint64_t m_cache_size,
-                           uint64_t m_block_size, uint64_t m_ways) :
+                           uint64_t m_block_size, uint64_t m_ways,
+                           uint64_t m_victim_size) :
     memory(0),
     ticks(m_ticks),
     blocks(0),
+    victim_cache(0),
     cache_size(m_cache_size),
     block_size(m_block_size),
     num_sets(0),
@@ -21,7 +23,6 @@ data_cache_t::data_cache_t(uint64_t *m_ticks, uint64_t m_cache_size,
     num_misses(0),
     num_loads(0),
     num_stores(0),
-    num_writebacks(0),
     missed_inst(0) {
     // Calculate the block offset.
     uint64_t val = block_size;
@@ -62,12 +63,18 @@ data_cache_t::data_cache_t(uint64_t *m_ticks, uint64_t m_cache_size,
     // Allocate cache blocks.
     blocks = new block_t*[num_sets]();
     for(uint64_t i = 0; i < num_sets; i++) { blocks[i] = new block_t[num_ways](); }
+
+    // Create a victim cache.
+    victim_cache = new victim_cache_t(m_victim_size);
 }
 
 data_cache_t::~data_cache_t() {
     // Deallocate the cache blocks.
     for(uint64_t i = 0; i < num_sets; i++) { delete [] blocks[i]; }
     delete [] blocks;
+
+    // Destruct the victim cache.
+    delete victim_cache;
 }
 
 // Connect to the lower-level memory.
@@ -92,7 +99,7 @@ void data_cache_t::read(inst_t *m_inst) {
     // Check direct-mapped cache entry.
     block_t *block = &blocks[set_index][0];
     if(!block->valid || (block->tag != tag)) { block = 0; }
-    
+
     if(block) { // Cache hit
         // Update the last access time.
         block->last_access = *ticks;
@@ -160,16 +167,15 @@ void data_cache_t::handle_response(int64_t *m_data) {
     uint64_t tag = addr >> set_offset;
 
     // Block replacement
-    block_t *allocator = &blocks[set_index][0];
-    if(allocator->dirty) { num_writebacks++; }
+    block_t *victim = &blocks[set_index][0];
+    if(victim->valid) {
 #ifdef DEBUG
-    if(allocator->valid) {
         cout << *ticks << " : cache block eviction : addr = " << addr
              << " (tag = " << tag << ", set = " << set_index << ")" << endl;
-    }
 #endif
+    }
     // Place the missed block.
-    *allocator = block_t(tag, m_data, /* valid */ true);
+    *victim = block_t(tag, m_data, /* valid */ true);
 
     // Replay the cache access.
     if(missed_inst->op == op_ld) { read(missed_inst); }
@@ -190,10 +196,65 @@ void data_cache_t::print_stats() {
     cout.precision(3);
     cout << "    Number of loads = " << num_loads << endl;
     cout << "    Number of stores = " << num_stores << endl;
-    cout << "    Number of writebacks = " << num_writebacks << endl;
     cout << "    Miss rate = " << fixed
          << (num_accesses ? double(num_misses) / double(num_accesses) : 0)
          << " (" << num_misses << "/" << num_accesses << ")" << endl;
+    cout.precision(-1);
+
+    // Print victim cache stats.
+    victim_cache->print_stats();
+}
+
+// Victim cache
+victim_cache_t::victim_cache_t(uint64_t m_size) :
+    num_entries(0),
+    size(m_size),
+    num_accesses(0),
+    num_hits(0),
+    num_writebacks(0),
+    blocks(0) {
+    blocks = new block_t[size]();
+}
+
+victim_cache_t::~victim_cache_t() {
+    delete [] blocks;
+}
+
+block_t victim_cache_t::remove(uint64_t m_addr) {
+    block_t block;  // Invalid block 
+
+    /* Search blocks[] if there's a matching entry. The matching entry should
+       become the returning block, such as:
+
+       block = blocks[i];
+
+       Otherwise, the invalid block is returned to the data cache's query to
+       indicate that there's no matching entry in the victim cache. */
+
+    return block;
+}
+
+void victim_cache_t::insert(block_t m_block) {
+    /* If the victim cache is full, the oldest entry is evicted and written
+       back to the memory if dirty, such as: */
+    if(num_entries == size) {
+        if(blocks[0].dirty) { num_writebacks++; }
+    }
+
+    /* The remaining entries are shifted forward, and the new victim block is
+       placed at the end of FIFO queue, such as: */
+    blocks[num_entries++] = m_block;
+
+}
+
+void victim_cache_t::print_stats() {
+    /* Do not modify this function */
+    cout << endl << "Victim cache stats:" << endl;
+    cout.precision(3);
+    cout << "    Number of writebacks = " << num_writebacks << endl;
+    cout << "    Hit rate = " << fixed
+         << (num_accesses ? double(num_hits) / double(num_accesses) : 0)
+         << " (" << num_hits << "/" << num_accesses << ")" << endl;
     cout.precision(-1);
 }
 

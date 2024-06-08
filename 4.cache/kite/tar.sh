@@ -13,7 +13,7 @@ if [[ `basename $PWD` == "kite" && -d doc ]]; then
     fi
     sid=`tail -1 ~/.sid`
     make clean > /dev/null
-    rm -rf .git *.swp $sid.tar assembly.sh functions.sh branch.sh
+    rm -rf .git *.swp $sid.tar assembly.sh functions.sh branch.sh cache.sh
     cd ..;
     tar cf $sid.tar --exclude="kite/doc" kite
     mv $sid.tar kite

@@ -37,17 +37,17 @@ proc_t::~proc_t() {
 
 // Processor initialization
 void proc_t::init(const char *m_program_code) {
-    inst_memory = new inst_memory_t(m_program_code);    // Create an instruction memory.
-    br_predictor = new br_predictor_t(4, 4);            // Create a branch predictor.
-    br_target_buffer = new br_target_buffer_t(16);      // Create a branch target buffer.
-    reg_file = new reg_file_t();                        // Create a register file.
-    alu = new alu_t(&ticks);                            // Create an ALU.
+    inst_memory = new inst_memory_t(m_program_code);        // Create an instruction memory.
+    br_predictor = new br_predictor_t(0, 4, 0);             // Create a branch predictor.
+    br_target_buffer = new br_target_buffer_t(16);          // Create a branch target buffer.
+    reg_file = new reg_file_t();                            // Create a register file.
+    alu = new alu_t(&ticks);                                // Create an ALU.
 
     data_memory = new data_memory_t(&ticks, 4096,
-                      inst_memory->num_insts()<<2, 0);  // Create a data memory.
-    data_cache = new data_cache_t(&ticks, 1024, 8, 1);  // Create a data cache.
-    data_memory->connect(data_cache);                   // Connect the memory to cache.
-    data_cache->connect(data_memory);                   // Connect the cache to memory.
+                      inst_memory->num_insts()<<2, 50);     // Create a data memory.
+    data_cache = new data_cache_t(&ticks, 512, 32, 1, 6);   // Create a data cache.
+    data_memory->connect(data_cache);                       // Connect the memory to cache.
+    data_cache->connect(data_memory);                       // Connect the cache to memory.
 }
 
 // Run the processor pipeline.

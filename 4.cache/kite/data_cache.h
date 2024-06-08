@@ -25,11 +25,14 @@ public:
     uint64_t last_access;                       // Last access cycle
 };
 
+class victim_cache_t;
+
 // Cache
 class data_cache_t {
 public:
     data_cache_t(uint64_t *m_ticks, uint64_t m_cache_size,
-                 uint64_t m_block_size = 8, uint64_t m_ways = 1);
+                 uint64_t m_block_size = 8, uint64_t m_ways = 1,
+                 uint64_t m_victim_size = 8);
     ~data_cache_t();
 
     void connect(data_memory_t *m_memory);      // Connect to the lower-level memory.
@@ -43,7 +46,8 @@ public:
 private:
     data_memory_t *memory;                      // Pointer to the lower-level memory
     uint64_t *ticks;                            // Pointer to processor clock ticks
-    block_t** blocks;                           // Cache blocks
+    block_t **blocks;                           // Cache blocks
+    victim_cache_t *victim_cache;               // Victim cache
 
     uint64_t cache_size;                        // Cache size in bytes
     uint64_t block_size;                        // Block size in bytes
@@ -58,9 +62,27 @@ private:
     uint64_t num_misses;                        // Number of misses
     uint64_t num_loads;                         // Number of loads
     uint64_t num_stores;                        // Number of stores
-    uint64_t num_writebacks;                    // Number of writebacks
 
     inst_t *missed_inst;                        // Missed memory instruction
+};
+
+// Victim cache
+class victim_cache_t {
+public:
+    victim_cache_t(uint64_t m_size);
+    ~victim_cache_t();
+
+    block_t remove(uint64_t m_addr);            // Remove the matched block.
+    void insert(block_t m_block);               // Insert a victim block.
+    void print_stats();                         // Print victim cache stats.
+
+private:
+    uint64_t num_entries;                       // Number of valid entries
+    uint64_t size;                              // Victim cache size
+    uint64_t num_accesses;                      // Number of accesses
+    uint64_t num_hits;                          // Number of victim cache hits
+    uint64_t num_writebacks;                    // Number of writebacks
+    block_t *blocks;                            // Victim cache entries
 };
 
 #endif 
