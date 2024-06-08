@@ -222,6 +222,18 @@ victim_cache_t::~victim_cache_t() {
 
 block_t victim_cache_t::remove(uint64_t m_addr) {
     block_t block;  // Invalid block 
+    block.valid = 0; 
+    
+    uint64_t m_tag = m_addr >> 5; 
+    for (uint64_t i = 0; i < size; i++){
+        if (blocks[i].tag == m_tag && blocks[i].valid == 1){
+            block = blocks[i]; 
+            for (uint64_t j = i + 1; j < size; j++){
+                blocks[j-1] = blocks[j];
+            }
+            return block; 
+        }
+    }
 
     /* Search blocks[] if there's a matching entry. The matching entry should
        become the returning block, such as:
@@ -237,8 +249,13 @@ block_t victim_cache_t::remove(uint64_t m_addr) {
 void victim_cache_t::insert(block_t m_block) {
     /* If the victim cache is full, the oldest entry is evicted and written
        back to the memory if dirty, such as: */
+    cout << "hello?" << endl;
     if(num_entries == size) {
         if(blocks[0].dirty) { num_writebacks++; }
+        num_entries--; 
+        for (uint64_t k = 1; k < size; k++){
+            blocks[k - 1] = blocks[k];
+        }
     }
 
     /* The remaining entries are shifted forward, and the new victim block is
