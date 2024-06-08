@@ -223,6 +223,7 @@ victim_cache_t::~victim_cache_t() {
 block_t victim_cache_t::remove(uint64_t m_addr) {
     block_t block;  // Invalid block 
     block.valid = 0; 
+    num_accesses++;
     
     uint64_t m_tag = m_addr >> 5; 
     for (uint64_t i = 0; i < size; i++){
@@ -231,6 +232,7 @@ block_t victim_cache_t::remove(uint64_t m_addr) {
             for (uint64_t j = i + 1; j < size; j++){
                 blocks[j-1] = blocks[j];
             }
+            num_hits++;
             return block; 
         }
     }
