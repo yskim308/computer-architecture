@@ -112,6 +112,13 @@ void data_cache_t::read(inst_t *m_inst) {
         num_loads++;
     }
     else { // Cache miss
+        block_t victimBlock = victim_cache->remove(addr);
+        if (victimBlock.valid){
+            victimBlock.tag = tag;
+            blocks[set_index][0] = victimBlock; 
+            read(m_inst);
+            return; 
+        }
         missed_inst = m_inst;
         memory->load_block(addr & ~block_mask, block_size);
         num_misses++;
@@ -149,6 +156,13 @@ void data_cache_t::write(inst_t *m_inst) {
         num_stores++;
     }
     else { // Cache miss
+        block_t victimBlock = victim_cache->remove(addr);
+        if (victimBlock.valid){
+            victimBlock.tag = tag;
+            blocks[set_index][0] = victimBlock;
+            write(m_inst);
+            return;
+        }
         missed_inst = m_inst;
         memory->load_block(addr & ~block_mask, block_size);
         num_misses++;
@@ -169,10 +183,12 @@ void data_cache_t::handle_response(int64_t *m_data) {
     // Block replacement
     block_t *victim = &blocks[set_index][0];
     if(victim->valid) {
-#ifdef DEBUG
+        victim->tag = addr >> 5;
+        victim_cache->insert(*victim);
+        /*
         cout << *ticks << " : cache block eviction : addr = " << addr
              << " (tag = " << tag << ", set = " << set_index << ")" << endl;
-#endif
+             */
     }
     // Place the missed block.
     *victim = block_t(tag, m_data, /* valid */ true);
@@ -222,22 +238,23 @@ victim_cache_t::~victim_cache_t() {
 
 block_t victim_cache_t::remove(uint64_t m_addr) {
     block_t block;  // Invalid block 
-    block.valid = 0; 
-    num_accesses++;
+    num_accesses++; //increment access
     
-    uint64_t m_tag = m_addr >> 5; 
-    for (uint64_t i = 0; i < size; i++){
-        if (blocks[i].tag == m_tag && blocks[i].valid == 1){
+    uint64_t m_tag = m_addr >> 5;  //tag is address shifted by block offset 
+    for (uint64_t i = 0; i < size; i++){ //iterate through the size of the victim caceh
+        if (blocks[i].tag == m_tag && blocks[i].valid){ //if the tag matches and the block is valid it is a hit
+            num_hits++;
             block = blocks[i]; 
+            //at index i shift everything forward
             for (uint64_t j = i + 1; j < size; j++){
                 blocks[j-1] = blocks[j];
             }
-            num_hits++;
-            return block; 
+            num_entries--; //decrease the number of entries after shifting
+            return block;  //early return of block 
         }
     }
 
-    /* Search blocks[] if there's a matching entry. The matching entry should
+    /* Search locks[] if there's a matching entry. The matching entry should
        become the returning block, such as:
 
        block = blocks[i];
@@ -251,17 +268,18 @@ block_t victim_cache_t::remove(uint64_t m_addr) {
 void victim_cache_t::insert(block_t m_block) {
     /* If the victim cache is full, the oldest entry is evicted and written
        back to the memory if dirty, such as: */
-    cout << "hello?" << endl;
-    if(num_entries == size) {
-        if(blocks[0].dirty) { num_writebacks++; }
-        num_entries--; 
+    if(num_entries == size) { //if victim is full 
+        if(blocks[0].dirty) { num_writebacks++; } //write back if the [0] is dirty (FIFO)
+        //iterate from 1 to end and shift 
         for (uint64_t k = 1; k < size; k++){
             blocks[k - 1] = blocks[k];
         }
+        num_entries--; //decreement the number of entriesj
     }
 
     /* The remaining entries are shifted forward, and the new victim block is
        placed at the end of FIFO queue, such as: */
+    //place new block at next available index
     blocks[num_entries++] = m_block;
 
 }
