@@ -112,12 +112,15 @@ void data_cache_t::read(inst_t *m_inst) {
         num_loads++;
     }
     else { // Cache miss
-        block_t victimBlock = victim_cache->remove(addr);
-        if (victimBlock.valid){
-            victimBlock.tag = tag;
-            blocks[set_index][0] = victimBlock; 
-            read(m_inst);
-            return;
+        block_t victimBlock = victim_cache->remove(addr); //get the block from victim cache
+        if (victimBlock.valid){ //victim block hit
+            victimBlock.tag = tag; //edit tag
+            block_t sendToVictim = blocks[set_index][0];  //get the block to evict (send to victim cache)
+            blocks[set_index][0] = victimBlock; //insert the block from victim cache and place into cache 
+            sendToVictim.tag = (sendToVictim.tag <<  (set_offset - block_offset)) | set_index; //update the tag of the evicted block 
+            victim_cache->insert(sendToVictim); //insert the evicted block into victim_cache
+            read(m_inst); // replay read() method 
+            return; //early return 
         }
         missed_inst = m_inst;
         memory->load_block(addr & ~block_mask, block_size);
@@ -156,12 +159,15 @@ void data_cache_t::write(inst_t *m_inst) {
         num_stores++;
     }
     else { // Cache miss
-        block_t victimBlock = victim_cache->remove(addr);
-        if (victimBlock.valid){
-            victimBlock.tag = tag;
-            blocks[set_index][0] = victimBlock;
-            write(m_inst);
-            return;
+        block_t victimBlock = victim_cache->remove(addr); //get victim block from victim cache 
+        if (victimBlock.valid){ //victim block hit
+            victimBlock.tag = tag; //update tag 
+            block_t sendToVictim = blocks[set_index][0]; //get the block to evict 
+            blocks[set_index][0] = victimBlock; //insert the victim block into the cache 
+            sendToVictim.tag = (sendToVictim.tag <<  (set_offset - block_offset)) | set_index; //update tag of evicted block 
+            victim_cache->insert(sendToVictim); //insert the evicted block into victim cache   
+            write(m_inst); //replay write()
+            return; // early return
         }
         missed_inst = m_inst;
         memory->load_block(addr & ~block_mask, block_size);
@@ -181,10 +187,10 @@ void data_cache_t::handle_response(int64_t *m_data) {
     uint64_t tag = addr >> set_offset;
 
     // Block replacement
-    block_t *victim = &blocks[set_index][0];
+    block_t *victim = &blocks[set_index][0]; 
     if(victim->valid) {
-        victim->tag = (victim->tag <<  (set_offset - block_offset)) | set_index;
-        victim_cache->insert(*victim);
+        victim->tag = (victim->tag <<  (set_offset - block_offset)) | set_index; //update the tag of the victim pointer
+        victim_cache->insert(*victim); //insert into victim cache
         /*
         cout << *ticks << " : cache block eviction : addr = " << addr
              << " (tag = " << tag << ", set = " << set_index << ")" << endl;
