@@ -117,7 +117,7 @@ void data_cache_t::read(inst_t *m_inst) {
             victimBlock.tag = tag;
             blocks[set_index][0] = victimBlock; 
             read(m_inst);
-            return; 
+            return;
         }
         missed_inst = m_inst;
         memory->load_block(addr & ~block_mask, block_size);
@@ -183,7 +183,7 @@ void data_cache_t::handle_response(int64_t *m_data) {
     // Block replacement
     block_t *victim = &blocks[set_index][0];
     if(victim->valid) {
-        victim->tag = addr >> 5;
+        victim->tag = (victim->tag <<  (set_offset - block_offset)) | set_index;
         victim_cache->insert(*victim);
         /*
         cout << *ticks << " : cache block eviction : addr = " << addr
